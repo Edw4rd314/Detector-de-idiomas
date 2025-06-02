@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reconocimiento de Voz Multilingüe con Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0b1a33;
+      color: white;
+      text-align: center;
+      margin-top: 50px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+    }
+    input {
+      width: 200px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #1c75bc;
+      color: white;
+    }
+    button:hover {
+      background-color: #145a8a;
+    }
+    #appSection {
+      display: none;
+      margin-top: 30px;
+    }
+    #recognizedText {
+      margin-top: 10px;
+      font-size: 1.3em;
+      color: #4caf50;
+      font-weight: bold;
+    }
+    #detectedLang {
+      margin-top: 5px;
+      font-size: 1.2em;
+      color: #ffd700;
+    }
+    #loginError {
+      color: #ff4c4c;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loginSection">
+    <h2>Iniciar sesión</h2>
+    <input type="text" id="username" placeholder="Usuario" required /><br/>
+    <input type="password" id="password" placeholder="Contraseña" required /><br/>
+    <button id="loginBtn">Entrar</button>
+    <p id="loginError"></p>
+  </div>
+
+  <div id="appSection">
+    <h2>🎤 Reconocimiento de Voz (Español / Inglés)</h2>
+    <p><strong>Idiomas reconocidos:</strong></p>
+    <ul style="list-style: none; padding: 0; font-size: 1.1em;">
+      <li>🇪🇸 Español (es-ES)</li>
+      <li>🇺🇸 Inglés (en-US)</li>
+    </ul>
+
+    <button id="startBtn">Hablar</button>
+
+    <p id="detectedLang"></p>
+    <p><strong>Texto reconocido:</strong></p>
+    <div id="recognizedText">—</div>
+
+    <button id="logoutBtn">Cerrar sesión</button>
+  </div>
+
+<script>
+  const USER = 'user';
+  const PASS = 'password';
+
+  const loginSection = document.getElementById('loginSection');
+  const appSection = document.getElementById('appSection');
+  const loginError = document.getElementById('loginError');
+  const recognizedText = document.getElementById('recognizedText');
+  const detectedLang = document.getElementById('detectedLang');
+
+  document.getElementById('loginBtn').onclick = () => {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+
+    if (username === USER && password === PASS) {
+      loginSection.style.display = 'none';
+      appSection.style.display = 'block';
+      loginError.textContent = '';
+    } else {
+      loginError.textContent = 'Usuario o contraseña incorrectos.';
+    }
+  };
+
+  document.getElementById('logoutBtn').onclick = () => {
+    appSection.style.display = 'none';
+    loginSection.style.display = 'block';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    recognizedText.textContent = '—';
+    detectedLang.textContent = '';
+  };
+
+  document.getElementById('startBtn').onclick = () => {
+    if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+      alert('Tu navegador no soporta Speech Recognition.');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    // Intentamos capturar en ambos idiomas: primero español
+    recognition.lang = 'es-ES';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript;
+      const lang = detectLanguage(text);
+      detectedLang.textContent = `Idioma detectado: ${lang === 'es' ? 'Español' : 'Inglés'}`;
+      recognizedText.textContent = text;
+    };
+
+    recognition.onerror = (event) => {
+      // Si falla con español, intentamos con inglés
+      if (recognition.lang === 'es-ES') {
+        recognition.lang = 'en-US';
+        recognition.start();
+      } else {
+        alert('Error en el reconocimiento de voz: ' + event.error);
+        recognizedText.textContent = '—';
+        detectedLang.textContent = '';
+      }
+    };
+
+    recognition.start();
+  };
+
+  function detectLanguage(text) {
+    // Heurística sencilla: contar palabras comunes en cada idioma
+    const spanishWords = [' el ',' la ',' de ',' que ',' y ',' en ',' un ',' ser ',' se ',' no '];
+    const englishWords = [' the ',' and ',' to ',' of ',' a ',' in ',' is ',' you ',' that ',' it '];
+
+    const lower = ' ' + text.toLowerCase() + ' ';
+    let esCount = 0, enCount = 0;
+
+    spanishWords.forEach(w => { if (lower.includes(w)) esCount++; });
+    englishWords.forEach(w => { if (lower.includes(w)) enCount++; });
+
+    return esCount >= enCount ? 'es' : 'en';
+  }
+</script>
+
+</body>
+</html>
